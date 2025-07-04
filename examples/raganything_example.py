@@ -241,7 +241,7 @@ async def process_with_rag(
 def main():
     """Main function to run the example"""
     parser = argparse.ArgumentParser(description="MinerU RAG Example")
-    parser.add_argument("file_path", help="Path to the document to process")
+    parser.add_argument("--file_path", help="Path to the document to process")
     parser.add_argument(
         "--working_dir", "-w", default="./rag_storage", help="Working directory path"
     )
