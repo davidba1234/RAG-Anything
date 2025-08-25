@@ -1,4 +1,4 @@
-FROM python:3.10-slim as base
+FROM python:3.10-slim
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -10,6 +10,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
+    git \
     libreoffice \
     poppler-utils \
     tesseract-ocr \
@@ -21,25 +22,27 @@ RUN apt-get update && apt-get install -y \
 # Create app user
 RUN useradd --create-home --shell /bin/bash app
 
-# Python dependencies stage
-FROM base as python-deps
-
-# Install Python dependencies
-COPY requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir -r /tmp/requirements.txt
-
-# Application stage
-FROM base as runtime
-
-# Copy Python packages from deps stage
-COPY --from=python-deps /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
-COPY --from=python-deps /usr/local/bin /usr/local/bin
-
 # Set working directory
 WORKDIR /app
 
+# Copy RAG-Anything modules
+COPY raganything /app/raganything/
+
 # Copy application code
-COPY --chown=app:app . .
+COPY python-api/requirements.txt /app/requirements.txt
+COPY python-api/app /app/app/
+
+# Install Python dependencies
+# First install numpy for OpenCV compatibility, then requirements, then lightrag-hku
+RUN pip install --no-cache-dir numpy==1.26.4 && \
+    pip install --no-cache-dir -r /app/requirements.txt && \
+    pip install --no-cache-dir --force-reinstall \
+    numpy==1.26.4 \
+    sympy==1.12 && \
+    pip install --no-cache-dir \
+    lightrag-hku==1.4.6 \
+    nano-vectordb \
+    networkx
 
 # Create necessary directories
 RUN mkdir -p /app/storage /app/lightrag_storage /app/uploads /app/temp /app/logs \

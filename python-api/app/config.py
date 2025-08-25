@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field, validator
 from pydantic_settings import BaseSettings
+from typing import Type
 
 
 class RedisSettings(BaseModel):
@@ -144,13 +145,26 @@ class Settings(BaseSettings):
         description="CORS allowed headers"
     )
     
-    # Component settings
-    redis: RedisSettings = Field(default_factory=RedisSettings)
-    auth: AuthSettings = Field(default_factory=lambda: AuthSettings(secret_key=os.urandom(32).hex()))
-    raganything: RAGAnythingSettings = Field(default_factory=RAGAnythingSettings)
-    files: FileSettings = Field(default_factory=FileSettings)
-    monitoring: MonitoringSettings = Field(default_factory=MonitoringSettings)
-    celery: CelerySettings = Field(default_factory=CelerySettings)
+    # Component settings - initialized from environment
+    redis: RedisSettings = RedisSettings()
+    auth: AuthSettings = AuthSettings(secret_key=os.environ.get("AUTH__SECRET_KEY", os.urandom(32).hex()))
+    raganything: RAGAnythingSettings = RAGAnythingSettings()
+    files: FileSettings = FileSettings()
+    monitoring: MonitoringSettings = MonitoringSettings()
+    celery: CelerySettings = CelerySettings()
+    
+    def __init__(self, **kwargs):
+        """Initialize settings with environment variable support."""
+        super().__init__(**kwargs)
+        
+        # Override with environment variables
+        redis_url = os.environ.get("REDIS__URL")
+        if redis_url:
+            self.redis.url = redis_url
+            
+        auth_secret = os.environ.get("AUTH__SECRET_KEY")
+        if auth_secret:
+            self.auth.secret_key = auth_secret
     
     # Convenience properties for backward compatibility
     @property

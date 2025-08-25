@@ -85,18 +85,20 @@ Pillow==10.1.0
 opencv-python==4.8.1.78
 
 # Scientific Computing (for embeddings and processing)
-numpy==1.25.2
+numpy==1.26.4  # Compatible with opencv-python 4.8.1
 pandas==2.1.3
+sympy==1.12  # For equation processing
 
 # OpenAI API
 openai==1.5.0
 
 # RAG-Anything dependencies
 huggingface_hub
-lightrag-hku
-# mineru[core]  # Temporarily disabled due to dependency conflict
 tqdm
 orjson==3.10.0
+
+# Note: lightrag-hku==1.4.6 is installed separately in Dockerfile
+# to avoid package conflicts with the lightrag namespace
 
 # Local RAG-Anything integration (path dependency)
 # Note: This will be handled via relative import in the actual implementation

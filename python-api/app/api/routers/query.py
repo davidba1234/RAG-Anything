@@ -95,6 +95,7 @@ class VLMQueryRequest(BaseModel):
     kb_id: str = Field(default="default", description="Knowledge base ID")
     enable_image_analysis: bool = Field(default=True, description="Enable image analysis")
     vlm_model: Optional[str] = Field(None, description="Specific VLM model to use")
+    analyze_images: Optional[List[str]] = Field(None, description="Specific image paths to analyze")
     
     @validator('mode')
     def validate_mode(cls, v):
@@ -254,7 +255,8 @@ async def query_vlm_enhanced(
             query=request.query,
             mode=request.mode,
             kb_id=request.kb_id,
-            enable_image_analysis=request.enable_image_analysis
+            enable_image_analysis=request.enable_image_analysis,
+            analyze_images=request.analyze_images
         )
         
         response = QueryResponse(

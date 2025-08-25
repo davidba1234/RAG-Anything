@@ -224,7 +224,8 @@ class RAGService:
         query: str,
         mode: str = "hybrid",
         kb_id: str = "default",
-        enable_image_analysis: bool = True
+        enable_image_analysis: bool = True,
+        analyze_images: List[str] = None
     ) -> Dict[str, Any]:
         """Execute VLM-enhanced query with automatic image analysis.
         
@@ -233,6 +234,7 @@ class RAGService:
             mode: Query mode
             kb_id: Knowledge base identifier
             enable_image_analysis: Whether to enable image analysis
+            analyze_images: Specific images to analyze (optional)
             
         Returns:
             VLM-enhanced query results
@@ -243,22 +245,94 @@ class RAGService:
             
             start_time = datetime.utcnow()
             
-            # For now, execute as regular text query
-            # This can be enhanced with actual VLM integration later
-            result = await self.query_text(
+            # First, execute text query to get context
+            text_result = await self.query_text(
                 query=query,
                 mode=mode,
                 kb_id=kb_id
             )
             
-            # Add VLM-specific metadata
-            result.update({
+            vlm_analyses = []
+            
+            if enable_image_analysis:
+                # Import VLM service
+                from app.services.vlm_service import get_vlm_service
+                vlm = get_vlm_service()
+                
+                # Find relevant images in knowledge base if not provided
+                if not analyze_images:
+                    # Look for images in the working directory
+                    analyze_images = await vlm.find_relevant_images(
+                        kb_path=str(self.working_dir),
+                        query=query,
+                        max_images=3
+                    )
+                
+                # Analyze each relevant image
+                for image_path in analyze_images:
+                    if os.path.exists(image_path):
+                        logger.info(f"Analyzing image with VLM: {image_path}")
+                        
+                        # Create contextual prompt based on query
+                        vision_prompt = f"""Analyze this image in the context of the following query:
+                        Query: {query}
+                        
+                        Provide relevant details that help answer the query."""
+                        
+                        analysis = await vlm.analyze_image(
+                            image_path=image_path,
+                            prompt=vision_prompt,
+                            max_tokens=500
+                        )
+                        
+                        if analysis.get("success"):
+                            vlm_analyses.append({
+                                "image": image_path,
+                                "analysis": analysis.get("analysis"),
+                                "model": analysis.get("model")
+                            })
+                
+                # If we have images to analyze together
+                if len(analyze_images) > 1 and vlm_analyses:
+                    comparative = await vlm.analyze_multiple_images(
+                        image_paths=analyze_images[:3],
+                        prompt=f"Compare these images in context of: {query}"
+                    )
+                    if comparative.get("success"):
+                        vlm_analyses.append({
+                            "type": "comparative",
+                            "analysis": comparative.get("analysis")
+                        })
+            
+            query_time = (datetime.utcnow() - start_time).total_seconds()
+            
+            # Combine text and vision results
+            result = {
+                "success": True,
+                "query": query,
+                "text_results": text_result,
                 "vlm_enhanced": True,
                 "image_analysis_enabled": enable_image_analysis,
-                "vlm_processing_note": "VLM enhancement placeholder - will be implemented with full VLM integration"
-            })
+                "vision_analyses": vlm_analyses,
+                "images_analyzed": len(vlm_analyses),
+                "query_time_seconds": query_time,
+                "kb_id": kb_id,
+                "mode": mode
+            }
             
-            logger.info("VLM-enhanced query executed (placeholder implementation)")
+            # If we have vision analyses, create an enhanced response
+            if vlm_analyses:
+                combined_context = text_result.get("result", "")
+                for analysis in vlm_analyses:
+                    if "analysis" in analysis:
+                        combined_context += f"\n\nImage Analysis: {analysis['analysis']}"
+                
+                result["enhanced_result"] = combined_context
+                logger.info(f"VLM-enhanced query with {len(vlm_analyses)} image analyses")
+            else:
+                result["enhanced_result"] = text_result.get("result", "")
+                logger.info("VLM-enhanced query executed (no images found)")
+            
             return result
             
         except Exception as e:

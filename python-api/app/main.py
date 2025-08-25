@@ -1,6 +1,7 @@
 """Main FastAPI application."""
 
 import json
+import os
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -60,8 +61,11 @@ async def lifespan(app: FastAPI):
     
     try:
         # Initialize Redis connection
+        redis_url = os.environ.get("REDIS__URL", settings.redis.url)
+        logger.info(f"Attempting to connect to Redis at: {redis_url}")
+        
         redis_client = aioredis.from_url(
-            settings.redis.url,
+            redis_url,
             max_connections=settings.redis.max_connections,
             retry_on_timeout=settings.redis.retry_on_timeout,
             decode_responses=True
