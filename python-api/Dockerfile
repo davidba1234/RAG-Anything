@@ -11,11 +11,19 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN apt-get update && apt-get install -y \
     build-essential \
     git \
+    wget \
     libreoffice \
     poppler-utils \
     tesseract-ocr \
     tesseract-ocr-eng \
+    tesseract-ocr-chi-sim \
     libmagic1 \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libgomp1 \
+    libglu1-mesa \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -32,17 +40,36 @@ COPY raganything /app/raganything/
 COPY python-api/requirements.txt /app/requirements.txt
 COPY python-api/app /app/app/
 
-# Install Python dependencies
-# First install numpy for OpenCV compatibility, then requirements, then lightrag-hku
+# Install Python dependencies in stages for better caching
+# Stage 1: Core dependencies and numpy
 RUN pip install --no-cache-dir numpy==1.26.4 && \
-    pip install --no-cache-dir -r /app/requirements.txt && \
+    pip install --no-cache-dir torch==2.2.0 torchvision==0.17.0 --index-url https://download.pytorch.org/whl/cpu
+
+# Stage 2: Base requirements
+RUN pip install --no-cache-dir -r /app/requirements.txt && \
     pip install --no-cache-dir --force-reinstall \
     numpy==1.26.4 \
-    sympy==1.12 && \
-    pip install --no-cache-dir \
+    sympy==1.12
+
+# Stage 3: LightRAG and related packages
+RUN pip install --no-cache-dir \
     lightrag-hku==1.4.6 \
     nano-vectordb \
     networkx
+
+# Stage 4: Document parsers
+# Install MinerU (magic-pdf) - basic version without detectron2
+RUN pip install --no-cache-dir \
+    magic-pdf==0.7.0b1 \
+    paddleocr \
+    paddlepaddle
+
+# Install Docling for advanced document parsing
+RUN pip install --no-cache-dir \
+    docling==1.20.0
+
+# Set Tesseract data path for OCR
+ENV TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata/
 
 # Create necessary directories
 RUN mkdir -p /app/storage /app/lightrag_storage /app/uploads /app/temp /app/logs \
