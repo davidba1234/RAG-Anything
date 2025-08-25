@@ -97,8 +97,8 @@ huggingface_hub
 tqdm
 orjson==3.10.0
 
-# Note: lightrag-hku==1.4.6 is installed separately in Dockerfile
-# to avoid package conflicts with the lightrag namespace
-
-# Local RAG-Anything integration (path dependency)
-# Note: This will be handled via relative import in the actual implementation
+# Note: Additional packages are installed in Dockerfile:
+# - lightrag-hku==1.4.6 (installed separately to avoid namespace conflicts)
+# - torch, torchvision (CPU versions for document processing)
+# - magic-pdf, paddleocr (for MinerU parser)
+# - docling (for advanced document parsing)

@@ -1,22 +1,27 @@
 FROM python:3.10-slim
 
-# Set environment variables
+# Set Python environment variables for production
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Install system dependencies
+# Install system dependencies required for document processing
 RUN apt-get update && apt-get install -y \
+    # Build tools
     build-essential \
     git \
     wget \
+    curl \
+    # Document processing
     libreoffice \
     poppler-utils \
+    # OCR support
     tesseract-ocr \
     tesseract-ocr-eng \
     tesseract-ocr-chi-sim \
+    # Image processing libraries
     libmagic1 \
     libglib2.0-0 \
     libsm6 \
@@ -24,7 +29,6 @@ RUN apt-get update && apt-get install -y \
     libxrender-dev \
     libgomp1 \
     libglu1-mesa \
-    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Create app user

@@ -1,44 +1,64 @@
 # RAG-Anything FastAPI
 
-Production-ready REST API for RAG-Anything, providing HTTP endpoints for document processing and querying.
+Production-ready REST API for RAG-Anything, providing HTTP endpoints for multimodal document processing and intelligent querying.
 
 ## Features
 
-- **Document Processing**: PDF, TXT, MD, DOCX, HTML, CSV, JSON
-- **Query Modes**: naive, local, global, hybrid, mix
-- **Authentication**: JWT tokens and API keys
-- **Rate Limiting**: Per-user/IP limits
-- **Auto Documentation**: Interactive API docs at `/docs`
+- **Document Processing**: PDF, DOCX, PPTX, images, and more via MinerU and Docling parsers
+- **Vision-Language Models**: GPT-4o integration for advanced image understanding
+- **Query Modes**: naive, local, global, hybrid, mix with LightRAG knowledge graphs
+- **Modal Processors**: Specialized handling for images, tables, equations
+- **Authentication**: JWT tokens and API keys with Redis session management
+- **Auto Documentation**: Interactive Swagger UI at `/docs`
 
 ## Quick Start
 
+### Using Docker (Recommended)
+
 ```bash
-# Install
-pip install -r requirements.txt
+# Clone and navigate to directory
+cd RAG-Anything/python-api
 
-# Configure
+# Configure environment
 cp .env.example .env
+# Edit .env and add your OPENAI_API_KEY
 
-# Run
-uvicorn app.main:app --reload --port 8000
+# Start services
+docker-compose up -d
 ```
 
-API docs: `http://localhost:8000/docs`
+API documentation: `http://localhost:8000/docs`
 
-## Docker
+### Manual Installation
 
 ```bash
-docker-compose up --build
+# Install dependencies
+pip install -r requirements.txt
+pip install lightrag-hku==1.4.6
+
+# Configure
+export OPENAI_API_KEY=your_key_here
+export REDIS__URL=redis://localhost:6379
+
+# Run
+uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
 ## Configuration
 
-Key environment variables in `.env`:
+Required environment variables:
 ```env
-LIGHTRAG_WORKING_DIR=./storage
-LIGHTRAG_LLM_MODEL=gpt-4o-mini
-API_KEY=your-api-key
-JWT_SECRET_KEY=your-secret-key
+# OpenAI API (required)
+OPENAI_API_KEY=your_openai_api_key
+OPENAI_API_BASE=https://api.openai.com/v1
+
+# Redis (default provided)
+REDIS__URL=redis://redis:6379
+
+# Optional
+ENVIRONMENT=production
+LOG_LEVEL=INFO
+AUTH__SECRET_KEY=your-secret-key
 ```
 
 ## Architecture
