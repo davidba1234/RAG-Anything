@@ -51,6 +51,11 @@ class RAGAnythingConfig:
     )
     """Enable equation content processing."""
 
+    enable_audio_processing: bool = field(
+        default=get_env_value("ENABLE_AUDIO_PROCESSING", True, bool)
+    )
+    """Enable audio content processing."""
+
     # Batch Processing Configuration
     # ---
     max_concurrent_files: int = field(

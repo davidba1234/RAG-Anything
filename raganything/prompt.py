@@ -24,6 +24,9 @@ PROMPTS["TABLE_ANALYSIS_SYSTEM"] = (
 PROMPTS["EQUATION_ANALYSIS_SYSTEM"] = (
     "You are an expert mathematician. Provide detailed mathematical analysis."
 )
+PROMPTS["AUDIO_ANALYSIS_SYSTEM"] = (
+    "You are an expert audio analyst. Provide detailed analysis of audio content including speech, music, and sound effects."
+)
 PROMPTS["GENERIC_ANALYSIS_SYSTEM"] = (
     "You are an expert content analyst specializing in {content_type} content."
 )
@@ -219,6 +222,74 @@ Format: {equation_format}
 
 Focus on providing mathematical insights and explaining the equation's significance within the broader context."""
 
+# Audio analysis prompt template
+PROMPTS[
+    "audio_prompt"
+] = """Please analyze this audio content and provide a JSON response with the following structure:
+
+{{
+    "detailed_description": "A comprehensive analysis of the audio including:
+    - Audio content type (speech, music, sound effects, etc.)
+    - Key information conveyed (if speech: main topics, speakers, language)
+    - Audio quality and technical characteristics
+    - Emotional tone and atmosphere
+    - Notable sounds, instruments, or voices
+    - Context and purpose of the audio
+    - Transcription accuracy assessment (if available)
+    - Significance and relevance of the content
+    Always use specific details and avoid generic descriptions.",
+    "entity_info": {{
+        "entity_name": "{entity_name}",
+        "entity_type": "audio",
+        "summary": "concise summary of the audio content and its significance (max 100 words)"
+    }}
+}}
+
+Audio Information:
+Audio Path: {audio_path}
+Transcript: {transcript}
+Duration: {duration}
+Format: {audio_format}
+Description: {description}
+
+Focus on providing detailed audio analysis that would be useful for knowledge retrieval."""
+
+# Audio analysis prompt with context support
+PROMPTS[
+    "audio_prompt_with_context"
+] = """Please analyze this audio content considering the surrounding context, and provide a JSON response with the following structure:
+
+{{
+    "detailed_description": "A comprehensive analysis of the audio including:
+    - Audio content type (speech, music, sound effects, etc.)
+    - Key information conveyed (if speech: main topics, speakers, language)
+    - Audio quality and technical characteristics
+    - Emotional tone and atmosphere
+    - Notable sounds, instruments, or voices
+    - Context and purpose of the audio in relation to surrounding content
+    - Transcription accuracy assessment (if available)
+    - How the audio relates to or supports the surrounding content
+    - Significance and relevance within the broader context
+    Always use specific details and avoid generic descriptions.",
+    "entity_info": {{
+        "entity_name": "{entity_name}",
+        "entity_type": "audio",
+        "summary": "concise summary of the audio content, its significance, and relationship to surrounding content (max 100 words)"
+    }}
+}}
+
+Context from surrounding content:
+{context}
+
+Audio Information:
+Audio Path: {audio_path}
+Transcript: {transcript}
+Duration: {duration}
+Format: {audio_format}
+Description: {description}
+
+Focus on providing detailed audio analysis that incorporates the context and would be useful for knowledge retrieval."""
+
 # Generic content analysis prompt template
 PROMPTS[
     "generic_prompt"
@@ -294,6 +365,15 @@ Format: {equation_format}
 
 Mathematical Analysis: {enhanced_caption}"""
 
+PROMPTS["audio_chunk"] = """Audio Content Analysis:
+Audio Path: {audio_path}
+Transcript: {transcript}
+Duration: {duration}
+Format: {audio_format}
+Description: {description}
+
+Audio Analysis: {enhanced_caption}"""
+
 PROMPTS["generic_chunk"] = """{content_type} Content Analysis:
 Content: {content}
 
@@ -334,6 +414,21 @@ Please briefly explain the mathematical meaning, application scenarios, and impo
 
 PROMPTS["QUERY_EQUATION_ANALYST_SYSTEM"] = (
     "You are a mathematics expert who can clearly explain mathematical formulas."
+)
+
+PROMPTS[
+    "QUERY_AUDIO_ANALYSIS"
+] = """Please analyze the main content and key information of the following audio data:
+
+Audio transcript: {transcript}
+Audio duration: {duration}
+Audio format: {audio_format}
+Audio description: {description}
+
+Please briefly summarize the main content, key topics, and important information of the audio."""
+
+PROMPTS["QUERY_AUDIO_ANALYST_SYSTEM"] = (
+    "You are a professional audio analyst who can accurately analyze audio content."
 )
 
 PROMPTS[

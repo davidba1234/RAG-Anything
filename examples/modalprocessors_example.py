@@ -2,6 +2,11 @@
 Example of directly using modal processors
 
 This example demonstrates how to use RAG-Anything's modal processors directly without going through MinerU.
+Includes examples for:
+- Image processing (with vision model)
+- Table processing (with LLM)
+- Equation processing (with LLM) 
+- Audio processing (with audio LLM)
 """
 
 import asyncio
@@ -14,6 +19,7 @@ from raganything.modalprocessors import (
     ImageModalProcessor,
     TableModalProcessor,
     EquationModalProcessor,
+    AudioModalProcessor,
 )
 
 WORKING_DIR = "./rag_storage"
@@ -71,6 +77,24 @@ def get_vision_model_func(api_key: str, base_url: str = None):
         if image_data
         else openai_complete_if_cache(
             "gpt-4o-mini",
+            prompt,
+            system_prompt=system_prompt,
+            history_messages=history_messages,
+            api_key=api_key,
+            base_url=base_url,
+            **kwargs,
+        )
+    )
+
+
+def get_audio_llm_func(api_key: str, base_url: str = None):
+    """Get audio LLM function for audio analysis"""
+    return (
+        lambda prompt,
+        system_prompt=None,
+        history_messages=[],
+        **kwargs: openai_complete_if_cache(
+            "gpt-4o-audio",  # Use audio-capable model if available
             prompt,
             system_prompt=system_prompt,
             history_messages=history_messages,
@@ -163,6 +187,45 @@ async def process_equation_example(lightrag: LightRAG, llm_model_func):
     print(f"Entity Info: {entity_info}")
 
 
+async def process_audio_example(lightrag: LightRAG, audio_llm_func):
+    """Example of processing audio content"""
+    # Create audio processor
+    audio_processor = AudioModalProcessor(
+        lightrag=lightrag, modal_caption_func=audio_llm_func
+    )
+
+    # Prepare audio content
+    audio_content = {
+        "audio_path": "./example_audio.mp3",  # Example path
+        "transcript": "Welcome to this technical tutorial. Today we will explore artificial intelligence and machine learning concepts.",
+        "duration": "00:03:45",
+        "format": "MP3",
+        "description": "AI tutorial introduction audio"
+    }
+
+    # Create example audio file (for demonstration)
+    import pathlib
+    pathlib.Path("./example_audio.mp3").touch()
+
+    try:
+        # Process audio
+        (description, entity_info, _) = await audio_processor.process_multimodal_content(
+            modal_content=audio_content,
+            content_type="audio",
+            file_path="audio_example.mp3",
+            entity_name="AI Tutorial Audio",
+        )
+
+        print("\nAudio Processing Results:")
+        print(f"Description: {description}")
+        print(f"Entity Info: {entity_info}")
+
+    finally:
+        # Clean up example file
+        if pathlib.Path("./example_audio.mp3").exists():
+            pathlib.Path("./example_audio.mp3").unlink()
+
+
 async def initialize_rag(api_key: str, base_url: str = None):
     rag = LightRAG(
         working_dir=WORKING_DIR,
@@ -218,11 +281,13 @@ async def main_async(api_key: str, base_url: str = None):
     # Get model functions
     llm_model_func = get_llm_model_func(api_key, base_url)
     vision_model_func = get_vision_model_func(api_key, base_url)
+    audio_llm_func = get_audio_llm_func(api_key, base_url)
 
     # Run examples
     await process_image_example(lightrag, vision_model_func)
     await process_table_example(lightrag, llm_model_func)
     await process_equation_example(lightrag, llm_model_func)
+    await process_audio_example(lightrag, audio_llm_func)
 
 
 if __name__ == "__main__":

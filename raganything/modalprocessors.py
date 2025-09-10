@@ -6,6 +6,7 @@ Includes:
 - ImageModalProcessor: Specialized processor for image content
 - TableModalProcessor: Specialized processor for table content
 - EquationModalProcessor: Specialized processor for equation content
+- AudioModalProcessor: Specialized processor for audio content
 - GenericModalProcessor: Processor for other modal content
 """
 
@@ -1380,6 +1381,228 @@ class EquationModalProcessor(BaseModalProcessor):
                 if entity_name
                 else f"equation_{compute_mdhash_id(response)}",
                 "entity_type": "equation",
+                "summary": response[:100] + "..." if len(response) > 100 else response,
+            }
+            return response, fallback_entity
+
+
+class AudioModalProcessor(BaseModalProcessor):
+    """Processor specialized for audio content"""
+
+    def __init__(
+        self,
+        lightrag: LightRAG,
+        modal_caption_func,
+        context_extractor: ContextExtractor = None,
+    ):
+        """Initialize audio processor
+
+        Args:
+            lightrag: LightRAG instance
+            modal_caption_func: Function for generating descriptions (supporting audio understanding)
+            context_extractor: Context extractor instance
+        """
+        super().__init__(lightrag, modal_caption_func, context_extractor)
+
+    async def generate_description_only(
+        self,
+        modal_content,
+        content_type: str,
+        item_info: Dict[str, Any] = None,
+        entity_name: str = None,
+    ) -> Tuple[str, Dict[str, Any]]:
+        """
+        Generate audio description and entity info only, without entity relation extraction.
+        Used for batch processing stage 1.
+
+        Args:
+            modal_content: Audio content to process
+            content_type: Type of modal content ("audio")
+            item_info: Item information for context extraction
+            entity_name: Optional predefined entity name
+
+        Returns:
+            Tuple of (enhanced_caption, entity_info)
+        """
+        try:
+            # Parse audio content
+            if isinstance(modal_content, str):
+                try:
+                    content_data = json.loads(modal_content)
+                except json.JSONDecodeError:
+                    content_data = {"description": modal_content}
+            else:
+                content_data = modal_content
+
+            audio_path = content_data.get("audio_path")
+            audio_transcript = content_data.get("transcript", "")
+            audio_duration = content_data.get("duration", "")
+            audio_format = content_data.get("format", "")
+            audio_description = content_data.get("description", "")
+
+            # Validate audio path
+            if not audio_path:
+                raise ValueError(
+                    f"No audio path provided in modal_content: {modal_content}"
+                )
+
+            # Convert to Path object and check if it exists
+            audio_path_obj = Path(audio_path)
+            if not audio_path_obj.exists():
+                raise FileNotFoundError(f"Audio file not found: {audio_path}")
+
+            # Extract context for current item
+            context = ""
+            if item_info:
+                context = self._get_context_for_item(item_info)
+
+            # Build detailed audio analysis prompt with context
+            if context:
+                audio_prompt = PROMPTS.get(
+                    "audio_prompt_with_context", PROMPTS["audio_prompt"]
+                ).format(
+                    context=context,
+                    entity_name=entity_name
+                    if entity_name
+                    else "unique descriptive name for this audio",
+                    audio_path=audio_path,
+                    transcript=audio_transcript if audio_transcript else "Not available",
+                    duration=audio_duration if audio_duration else "Unknown",
+                    audio_format=audio_format if audio_format else "Unknown",
+                    description=audio_description if audio_description else "None",
+                )
+            else:
+                audio_prompt = PROMPTS["audio_prompt"].format(
+                    entity_name=entity_name
+                    if entity_name
+                    else "unique descriptive name for this audio",
+                    audio_path=audio_path,
+                    transcript=audio_transcript if audio_transcript else "Not available",
+                    duration=audio_duration if audio_duration else "Unknown",
+                    audio_format=audio_format if audio_format else "Unknown",
+                    description=audio_description if audio_description else "None",
+                )
+
+            # Call audio analysis model
+            response = await self.modal_caption_func(
+                audio_prompt,
+                system_prompt=PROMPTS["AUDIO_ANALYSIS_SYSTEM"],
+            )
+
+            # Parse response
+            enhanced_caption, entity_info = self._parse_response(response, entity_name)
+
+            return enhanced_caption, entity_info
+
+        except Exception as e:
+            logger.error(f"Error generating audio description: {e}")
+            # Fallback processing
+            fallback_entity = {
+                "entity_name": entity_name
+                if entity_name
+                else f"audio_{compute_mdhash_id(str(modal_content))}",
+                "entity_type": "audio",
+                "summary": f"Audio content: {str(modal_content)[:100]}",
+            }
+            return str(modal_content), fallback_entity
+
+    async def process_multimodal_content(
+        self,
+        modal_content,
+        content_type: str,
+        file_path: str = "manual_creation",
+        entity_name: str = None,
+        item_info: Dict[str, Any] = None,
+        batch_mode: bool = False,
+        doc_id: str = None,
+        chunk_order_index: int = 0,
+    ) -> Tuple[str, Dict[str, Any]]:
+        """Process audio content with context support"""
+        try:
+            # Generate description and entity info
+            enhanced_caption, entity_info = await self.generate_description_only(
+                modal_content, content_type, item_info, entity_name
+            )
+
+            # Build complete audio content
+            if isinstance(modal_content, str):
+                try:
+                    content_data = json.loads(modal_content)
+                except json.JSONDecodeError:
+                    content_data = {"description": modal_content}
+            else:
+                content_data = modal_content
+
+            audio_path = content_data.get("audio_path", "")
+            transcript = content_data.get("transcript", "")
+            duration = content_data.get("duration", "")
+            audio_format = content_data.get("format", "")
+            description = content_data.get("description", "")
+
+            modal_chunk = PROMPTS["audio_chunk"].format(
+                audio_path=audio_path,
+                transcript=transcript if transcript else "Not available",
+                duration=duration if duration else "Unknown",
+                audio_format=audio_format if audio_format else "Unknown",
+                description=description if description else "None",
+                enhanced_caption=enhanced_caption,
+            )
+
+            return await self._create_entity_and_chunk(
+                modal_chunk,
+                entity_info,
+                file_path,
+                batch_mode,
+                doc_id,
+                chunk_order_index,
+            )
+
+        except Exception as e:
+            logger.error(f"Error processing audio content: {e}")
+            # Fallback processing
+            fallback_entity = {
+                "entity_name": entity_name
+                if entity_name
+                else f"audio_{compute_mdhash_id(str(modal_content))}",
+                "entity_type": "audio",
+                "summary": f"Audio content: {str(modal_content)[:100]}",
+            }
+            return str(modal_content), fallback_entity
+
+    def _parse_response(
+        self, response: str, entity_name: str = None
+    ) -> Tuple[str, Dict[str, Any]]:
+        """Parse audio analysis response"""
+        try:
+            response_data = self._robust_json_parse(response)
+
+            description = response_data.get("detailed_description", "")
+            entity_data = response_data.get("entity_info", {})
+
+            if not description or not entity_data:
+                raise ValueError("Missing required fields in response")
+
+            if not all(
+                key in entity_data for key in ["entity_name", "entity_type", "summary"]
+            ):
+                raise ValueError("Missing required fields in entity_info")
+
+            entity_data["entity_name"] = (
+                entity_data["entity_name"] + f" ({entity_data['entity_type']})"
+            )
+            if entity_name:
+                entity_data["entity_name"] = entity_name
+
+            return description, entity_data
+
+        except (json.JSONDecodeError, AttributeError, ValueError) as e:
+            logger.error(f"Error parsing audio analysis response: {e}")
+            logger.debug(f"Raw response: {response}")
+            fallback_entity = {
+                "entity_name": entity_name
+                if entity_name
+                else f"audio_{compute_mdhash_id(response)}",
+                "entity_type": "audio",
                 "summary": response[:100] + "..." if len(response) > 100 else response,
             }
             return response, fallback_entity

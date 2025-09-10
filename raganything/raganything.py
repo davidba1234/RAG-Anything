@@ -38,6 +38,7 @@ from raganything.modalprocessors import (
     ImageModalProcessor,
     TableModalProcessor,
     EquationModalProcessor,
+    AudioModalProcessor,
     GenericModalProcessor,
     ContextExtractor,
     ContextConfig,
@@ -58,6 +59,9 @@ class RAGAnything(QueryMixin, ProcessorMixin, BatchMixin):
 
     vision_model_func: Optional[Callable] = field(default=None)
     """Vision model function for image analysis."""
+
+    audio_llm_func: Optional[Callable] = field(default=None)
+    """Audio LLM function for audio analysis."""
 
     embedding_func: Optional[Callable] = field(default=None)
     """Embedding function for text vectorization."""
@@ -124,7 +128,8 @@ class RAGAnything(QueryMixin, ProcessorMixin, BatchMixin):
         self.logger.info(
             f"  Multimodal processing - Image: {self.config.enable_image_processing}, "
             f"Table: {self.config.enable_table_processing}, "
-            f"Equation: {self.config.enable_equation_processing}"
+            f"Equation: {self.config.enable_equation_processing}, "
+            f"Audio: {self.config.enable_audio_processing}"
         )
         self.logger.info(f"  Max concurrent files: {self.config.max_concurrent_files}")
 
@@ -197,6 +202,13 @@ class RAGAnything(QueryMixin, ProcessorMixin, BatchMixin):
             self.modal_processors["equation"] = EquationModalProcessor(
                 lightrag=self.lightrag,
                 modal_caption_func=self.llm_model_func,
+                context_extractor=self.context_extractor,
+            )
+
+        if self.config.enable_audio_processing:
+            self.modal_processors["audio"] = AudioModalProcessor(
+                lightrag=self.lightrag,
+                modal_caption_func=self.audio_llm_func or self.llm_model_func,
                 context_extractor=self.context_extractor,
             )
 
@@ -429,6 +441,7 @@ class RAGAnything(QueryMixin, ProcessorMixin, BatchMixin):
                 "enable_image_processing": self.config.enable_image_processing,
                 "enable_table_processing": self.config.enable_table_processing,
                 "enable_equation_processing": self.config.enable_equation_processing,
+                "enable_audio_processing": self.config.enable_audio_processing,
             },
             "context_extraction": {
                 "context_window": self.config.context_window,
@@ -540,6 +553,9 @@ class RAGAnything(QueryMixin, ProcessorMixin, BatchMixin):
                 else "Not provided",
                 "vision_model": "External function"
                 if self.vision_model_func
+                else "Not provided",
+                "audio_llm_model": "External function"
+                if self.audio_llm_func
                 else "Not provided",
                 "embedding_model": "External function"
                 if self.embedding_func
