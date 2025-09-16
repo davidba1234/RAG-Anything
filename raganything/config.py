@@ -56,6 +56,11 @@ class RAGAnythingConfig:
     )
     """Enable audio content processing."""
 
+    enable_video_processing: bool = field(
+        default=get_env_value("ENABLE_VIDEO_PROCESSING", True, bool)
+    )
+    """Enable video content processing."""
+
     # Batch Processing Configuration
     # ---
     max_concurrent_files: int = field(

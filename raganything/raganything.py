@@ -40,6 +40,7 @@ from raganything.modalprocessors import (
     TableModalProcessor,
     EquationModalProcessor,
     AudioModalProcessor,
+    VideoModalProcessor,
     GenericModalProcessor,
     ContextExtractor,
     ContextConfig,
@@ -63,6 +64,9 @@ class RAGAnything(QueryMixin, ProcessorMixin, BatchMixin):
 
     audio_llm_func: Optional[Callable] = field(default=None)
     """Audio LLM function for audio analysis."""
+
+    video_llm_func: Optional[Callable] = field(default=None)
+    """Video LLM function for video analysis."""
 
     embedding_func: Optional[Callable] = field(default=None)
     """Embedding function for text vectorization."""
@@ -213,6 +217,13 @@ class RAGAnything(QueryMixin, ProcessorMixin, BatchMixin):
             self.modal_processors["audio"] = AudioModalProcessor(
                 lightrag=self.lightrag,
                 modal_caption_func=self.audio_llm_func or self.llm_model_func,
+                context_extractor=self.context_extractor,
+            )
+
+        if self.config.enable_video_processing:
+            self.modal_processors["video"] = VideoModalProcessor(
+                lightrag=self.lightrag,
+                modal_caption_func=self.video_llm_func or self.llm_model_func,
                 context_extractor=self.context_extractor,
             )
 
@@ -560,6 +571,9 @@ class RAGAnything(QueryMixin, ProcessorMixin, BatchMixin):
                 else "Not provided",
                 "audio_llm_model": "External function"
                 if self.audio_llm_func
+                else "Not provided",
+                "video_llm_model": "External function"
+                if self.video_llm_func
                 else "Not provided",
                 "embedding_model": "External function"
                 if self.embedding_func

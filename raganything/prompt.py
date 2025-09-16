@@ -27,6 +27,9 @@ PROMPTS["EQUATION_ANALYSIS_SYSTEM"] = (
 PROMPTS["AUDIO_ANALYSIS_SYSTEM"] = (
     "You are an expert audio analyst. Provide detailed analysis of audio content including speech, music, and sound effects."
 )
+PROMPTS["VIDEO_ANALYSIS_SYSTEM"] = (
+    "You are an expert video analyst. Provide detailed analysis of video content including visual elements, actions, scenes, and narrative structure."
+)
 PROMPTS["GENERIC_ANALYSIS_SYSTEM"] = (
     "You are an expert content analyst specializing in {content_type} content."
 )
@@ -290,6 +293,78 @@ Description: {description}
 
 Focus on providing detailed audio analysis that incorporates the context and would be useful for knowledge retrieval."""
 
+# Video analysis prompt template
+PROMPTS[
+    "video_prompt"
+] = """Please analyze this video content and provide a JSON response with the following structure:
+
+{{
+    "detailed_description": "A comprehensive analysis of the video including:
+    - Video content type (educational, entertainment, documentary, etc.)
+    - Visual elements and scenes description
+    - Actions, movements, and activities shown
+    - Key information conveyed (dialogue, narration, text overlays)
+    - Video quality and technical characteristics
+    - Audio elements (speech, music, sound effects)
+    - Narrative structure and flow
+    - Context and purpose of the video
+    - Caption/subtitle accuracy assessment (if available)
+    - Significance and relevance of the content
+    Always use specific details and avoid generic descriptions.",
+    "entity_info": {{
+        "entity_name": "{entity_name}",
+        "entity_type": "video",
+        "summary": "concise summary of the video content and its significance (max 100 words)"
+    }}
+}}
+
+Video Information:
+Video Path: {video_path}
+Caption/Subtitle: {caption}
+Duration: {duration}
+Format: {video_format}
+Description: {description}
+
+Focus on providing detailed video analysis that would be useful for knowledge retrieval."""
+
+# Video analysis prompt with context support
+PROMPTS[
+    "video_prompt_with_context"
+] = """Please analyze this video content considering the surrounding context, and provide a JSON response with the following structure:
+
+{{
+    "detailed_description": "A comprehensive analysis of the video including:
+    - Video content type (educational, entertainment, documentary, etc.)
+    - Visual elements and scenes description
+    - Actions, movements, and activities shown
+    - Key information conveyed (dialogue, narration, text overlays)
+    - Video quality and technical characteristics
+    - Audio elements (speech, music, sound effects)
+    - Narrative structure and flow
+    - Context and purpose of the video in relation to surrounding content
+    - Caption/subtitle accuracy assessment (if available)
+    - How the video relates to or supports the surrounding content
+    - Significance and relevance within the broader context
+    Always use specific details and avoid generic descriptions.",
+    "entity_info": {{
+        "entity_name": "{entity_name}",
+        "entity_type": "video",
+        "summary": "concise summary of the video content, its significance, and relationship to surrounding content (max 100 words)"
+    }}
+}}
+
+Context from surrounding content:
+{context}
+
+Video Information:
+Video Path: {video_path}
+Caption/Subtitle: {caption}
+Duration: {duration}
+Format: {video_format}
+Description: {description}
+
+Focus on providing detailed video analysis that incorporates the context and would be useful for knowledge retrieval."""
+
 # Generic content analysis prompt template
 PROMPTS[
     "generic_prompt"
@@ -374,6 +449,15 @@ Description: {description}
 
 Audio Analysis: {enhanced_caption}"""
 
+PROMPTS["video_chunk"] = """Video Content Analysis:
+Video Path: {video_path}
+Caption/Subtitle: {caption}
+Duration: {duration}
+Format: {video_format}
+Description: {description}
+
+Video Analysis: {enhanced_caption}"""
+
 PROMPTS["generic_chunk"] = """{content_type} Content Analysis:
 Content: {content}
 
@@ -429,6 +513,21 @@ Please briefly summarize the main content, key topics, and important information
 
 PROMPTS["QUERY_AUDIO_ANALYST_SYSTEM"] = (
     "You are a professional audio analyst who can accurately analyze audio content."
+)
+
+PROMPTS[
+    "QUERY_VIDEO_ANALYSIS"
+] = """Please analyze the main content and key information of the following video data:
+
+Video caption/subtitle: {caption}
+Video duration: {duration}
+Video format: {video_format}
+Video description: {description}
+
+Please briefly summarize the main content, key scenes, and important information of the video."""
+
+PROMPTS["QUERY_VIDEO_ANALYST_SYSTEM"] = (
+    "You are a professional video analyst who can accurately analyze video content."
 )
 
 PROMPTS[

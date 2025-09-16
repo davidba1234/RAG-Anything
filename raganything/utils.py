@@ -239,6 +239,10 @@ def get_processor_for_type(modal_processors: Dict[str, Any], content_type: str):
         return modal_processors.get("table")
     elif content_type == "equation":
         return modal_processors.get("equation")
+    elif content_type == "audio":
+        return modal_processors.get("audio")
+    elif content_type == "video":
+        return modal_processors.get("video")
     else:
         # For other types, use generic processor
         return modal_processors.get("generic")
@@ -264,6 +268,20 @@ def get_processor_supports(proc_type: str) -> List[str]:
             "Variable identification",
             "Formula meaning explanation",
             "Formula entity extraction",
+        ],
+        "audio": [
+            "Audio content analysis",
+            "Speech recognition",
+            "Music and sound identification",
+            "Audio entity extraction",
+        ],
+        "video": [
+            "Video content analysis",
+            "Visual scene understanding",
+            "Action and movement detection",
+            "Audio-visual synchronization",
+            "Narrative structure analysis",
+            "Video entity extraction",
         ],
         "generic": [
             "General content analysis",

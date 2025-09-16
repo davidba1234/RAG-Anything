@@ -7,6 +7,7 @@ Includes:
 - TableModalProcessor: Specialized processor for table content
 - EquationModalProcessor: Specialized processor for equation content
 - AudioModalProcessor: Specialized processor for audio content
+- VideoModalProcessor: Specialized processor for video content
 - GenericModalProcessor: Processor for other modal content
 """
 
@@ -1412,6 +1413,16 @@ class AudioModalProcessor(BaseModalProcessor):
         """
         super().__init__(lightrag, modal_caption_func, context_extractor)
 
+    def _encode_audio_to_base64(self, audio_path: str) -> str:
+        """Encode audio to base64"""
+        try:
+            with open(audio_path, "rb") as audio_file:
+                encoded_string = base64.b64encode(audio_file.read()).decode("utf-8")
+            return encoded_string
+        except Exception as e:
+            logger.error(f"Failed to encode audio {audio_path}: {e}")
+            return ""
+
     async def generate_description_only(
         self,
         modal_content,
@@ -1491,9 +1502,15 @@ class AudioModalProcessor(BaseModalProcessor):
                     description=audio_description if audio_description else "None",
                 )
 
-            # Call audio analysis model
+            # Encode audio to base64
+            audio_base64 = self._encode_audio_to_base64(audio_path)
+            if not audio_base64:
+                raise RuntimeError(f"Failed to encode audio to base64: {audio_path}")
+
+            # Call audio analysis model with base64 encoded audio
             response = await self.modal_caption_func(
                 audio_prompt,
+                audio_data=audio_base64,
                 system_prompt=PROMPTS["AUDIO_ANALYSIS_SYSTEM"],
             )
 
@@ -1611,6 +1628,244 @@ class AudioModalProcessor(BaseModalProcessor):
                 if entity_name
                 else f"audio_{compute_mdhash_id(response)}",
                 "entity_type": "audio",
+                "summary": response[:100] + "..." if len(response) > 100 else response,
+            }
+            return response, fallback_entity
+
+
+class VideoModalProcessor(BaseModalProcessor):
+    """Processor specialized for video content"""
+
+    def __init__(
+        self,
+        lightrag: LightRAG,
+        modal_caption_func,
+        context_extractor: ContextExtractor = None,
+    ):
+        """Initialize video processor
+
+        Args:
+            lightrag: LightRAG instance
+            modal_caption_func: Function for generating descriptions (supporting video understanding)
+            context_extractor: Context extractor instance
+        """
+        super().__init__(lightrag, modal_caption_func, context_extractor)
+
+    def _encode_video_to_base64(self, video_path: str) -> str:
+        """Encode video to base64"""
+        try:
+            with open(video_path, "rb") as video_file:
+                encoded_string = base64.b64encode(video_file.read()).decode("utf-8")
+            return encoded_string
+        except Exception as e:
+            logger.error(f"Failed to encode video {video_path}: {e}")
+            return ""
+
+    async def generate_description_only(
+        self,
+        modal_content,
+        content_type: str,
+        item_info: Dict[str, Any] = None,
+        entity_name: str = None,
+    ) -> Tuple[str, Dict[str, Any]]:
+        """
+        Generate video description and entity info only, without entity relation extraction.
+        Used for batch processing stage 1.
+
+        Args:
+            modal_content: Video content to process
+            content_type: Type of modal content ("video")
+            item_info: Item information for context extraction
+            entity_name: Optional predefined entity name
+
+        Returns:
+            Tuple of (enhanced_caption, entity_info)
+        """
+        try:
+            # Parse video content
+            if isinstance(modal_content, str):
+                try:
+                    content_data = json.loads(modal_content)
+                except json.JSONDecodeError:
+                    content_data = {"description": modal_content}
+            else:
+                content_data = modal_content
+
+            video_path = content_data.get("video_path")
+            video_caption = content_data.get("caption", content_data.get("subtitle", ""))
+            video_duration = content_data.get("duration", "")
+            video_format = content_data.get("format", "")
+            video_description = content_data.get("description", "")
+
+            # Validate video path
+            if not video_path:
+                raise ValueError(
+                    f"No video path provided in modal_content: {modal_content}"
+                )
+
+            # Convert to Path object and check if it exists
+            video_path_obj = Path(video_path)
+            if not video_path_obj.exists():
+                raise FileNotFoundError(f"Video file not found: {video_path}")
+
+            # Extract context for current item
+            context = ""
+            if item_info:
+                context = self._get_context_for_item(item_info)
+
+            # Build detailed video analysis prompt with context
+            if context:
+                video_prompt = PROMPTS.get(
+                    "video_prompt_with_context", PROMPTS["video_prompt"]
+                ).format(
+                    context=context,
+                    entity_name=entity_name
+                    if entity_name
+                    else "unique descriptive name for this video",
+                    video_path=video_path,
+                    caption=video_caption if video_caption else "Not available",
+                    duration=video_duration if video_duration else "Unknown",
+                    video_format=video_format if video_format else "Unknown",
+                    description=video_description if video_description else "None",
+                )
+            else:
+                video_prompt = PROMPTS["video_prompt"].format(
+                    entity_name=entity_name
+                    if entity_name
+                    else "unique descriptive name for this video",
+                    video_path=video_path,
+                    caption=video_caption if video_caption else "Not available",
+                    duration=video_duration if video_duration else "Unknown",
+                    video_format=video_format if video_format else "Unknown",
+                    description=video_description if video_description else "None",
+                )
+
+            # Encode video to base64
+            video_base64 = self._encode_video_to_base64(video_path)
+            if not video_base64:
+                raise RuntimeError(f"Failed to encode video to base64: {video_path}")
+
+            # Call video analysis model with base64 encoded video
+            response = await self.modal_caption_func(
+                video_prompt,
+                video_data=video_base64,
+                system_prompt=PROMPTS["VIDEO_ANALYSIS_SYSTEM"],
+            )
+
+            # Parse response
+            enhanced_caption, entity_info = self._parse_response(response, entity_name)
+
+            return enhanced_caption, entity_info
+
+        except Exception as e:
+            logger.error(f"Error generating video description: {e}")
+            # Fallback processing
+            fallback_entity = {
+                "entity_name": entity_name
+                if entity_name
+                else f"video_{compute_mdhash_id(str(modal_content))}",
+                "entity_type": "video",
+                "summary": f"Video content: {str(modal_content)[:100]}",
+            }
+            return str(modal_content), fallback_entity
+
+    async def process_multimodal_content(
+        self,
+        modal_content,
+        content_type: str,
+        file_path: str = "manual_creation",
+        entity_name: str = None,
+        item_info: Dict[str, Any] = None,
+        batch_mode: bool = False,
+        doc_id: str = None,
+        chunk_order_index: int = 0,
+    ) -> Tuple[str, Dict[str, Any]]:
+        """Process video content with context support"""
+        try:
+            # Generate description and entity info
+            enhanced_caption, entity_info = await self.generate_description_only(
+                modal_content, content_type, item_info, entity_name
+            )
+
+            # Build complete video content
+            if isinstance(modal_content, str):
+                try:
+                    content_data = json.loads(modal_content)
+                except json.JSONDecodeError:
+                    content_data = {"description": modal_content}
+            else:
+                content_data = modal_content
+
+            video_path = content_data.get("video_path", "")
+            caption = content_data.get("caption", content_data.get("subtitle", ""))
+            duration = content_data.get("duration", "")
+            video_format = content_data.get("format", "")
+            description = content_data.get("description", "")
+
+            modal_chunk = PROMPTS["video_chunk"].format(
+                video_path=video_path,
+                caption=caption if caption else "Not available",
+                duration=duration if duration else "Unknown",
+                video_format=video_format if video_format else "Unknown",
+                description=description if description else "None",
+                enhanced_caption=enhanced_caption,
+            )
+
+            return await self._create_entity_and_chunk(
+                modal_chunk,
+                entity_info,
+                file_path,
+                batch_mode,
+                doc_id,
+                chunk_order_index,
+            )
+
+        except Exception as e:
+            logger.error(f"Error processing video content: {e}")
+            # Fallback processing
+            fallback_entity = {
+                "entity_name": entity_name
+                if entity_name
+                else f"video_{compute_mdhash_id(str(modal_content))}",
+                "entity_type": "video",
+                "summary": f"Video content: {str(modal_content)[:100]}",
+            }
+            return str(modal_content), fallback_entity
+
+    def _parse_response(
+        self, response: str, entity_name: str = None
+    ) -> Tuple[str, Dict[str, Any]]:
+        """Parse video analysis response"""
+        try:
+            response_data = self._robust_json_parse(response)
+
+            description = response_data.get("detailed_description", "")
+            entity_data = response_data.get("entity_info", {})
+
+            if not description or not entity_data:
+                raise ValueError("Missing required fields in response")
+
+            if not all(
+                key in entity_data for key in ["entity_name", "entity_type", "summary"]
+            ):
+                raise ValueError("Missing required fields in entity_info")
+
+            entity_data["entity_name"] = (
+                entity_data["entity_name"] + f" ({entity_data['entity_type']})"
+            )
+            if entity_name:
+                entity_data["entity_name"] = entity_name
+
+            return description, entity_data
+
+        except (json.JSONDecodeError, AttributeError, ValueError) as e:
+            logger.error(f"Error parsing video analysis response: {e}")
+            logger.debug(f"Raw response: {response}")
+            fallback_entity = {
+                "entity_name": entity_name
+                if entity_name
+                else f"video_{compute_mdhash_id(response)}",
+                "entity_type": "video",
                 "summary": response[:100] + "..." if len(response) > 100 else response,
             }
             return response, fallback_entity

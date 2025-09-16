@@ -178,6 +178,16 @@ The system deploys modality-aware processing units for heterogeneous data modali
   - Provides native LaTeX format support for seamless integration with academic workflows.
   - Establishes conceptual mappings between mathematical equations and domain-specific knowledge bases.
 
+- **🔊 Audio Content Analyzer**:
+  - Processes audio content including speech, music, and sound effects with specialized models.
+  - Generates comprehensive audio descriptions with transcription analysis and quality assessment.
+  - Extracts audio entities and relationships for multimodal knowledge graph integration.
+
+- **🎬 Video Content Analyzer**:
+  - Analyzes video content including visual scenes, actions, movements, and narrative structure.
+  - Processes audio-visual synchronization and temporal relationships within video sequences.
+  - Supports caption/subtitle integration for enhanced video understanding and entity extraction.
+
 - **🔧 Extensible Modality Handler**:
   - Provides configurable processing framework for custom and emerging content types.
   - Enables dynamic integration of new modality processors through plugin architecture.
@@ -304,6 +314,8 @@ async def main():
         enable_image_processing=True,
         enable_table_processing=True,
         enable_equation_processing=True,
+        enable_audio_processing=True,
+        enable_video_processing=True,
     )
 
     # Define LLM model function
@@ -426,7 +438,7 @@ import asyncio
 from lightrag import LightRAG
 from lightrag.llm.openai import openai_complete_if_cache, openai_embed
 from lightrag.utils import EmbeddingFunc
-from raganything.modalprocessors import ImageModalProcessor, TableModalProcessor
+from raganything.modalprocessors import ImageModalProcessor, TableModalProcessor, AudioModalProcessor, VideoModalProcessor
 
 async def process_multimodal_content():
     # Set up API configuration
@@ -498,6 +510,97 @@ async def process_multimodal_content():
         content_type="image",
         file_path="research_paper.pdf",
         entity_name="Experimental Results Figure"
+    )
+
+    # Process an audio
+    audio_processor = AudioModalProcessor(
+        lightrag=rag,
+        modal_caption_func=lambda prompt, system_prompt=None, history_messages=[], audio_data=None, **kwargs: openai_complete_if_cache(
+            "gpt-4o",
+            "",
+            system_prompt=None,
+            history_messages=[],
+            messages=[
+                {"role": "system", "content": [{"text": system_prompt}]} if system_prompt else None,
+                {"role": "user", "content": [
+                    {"audio": f"data:audio/mp3;base64,{audio_data}"},
+                    {"text": prompt}
+                ]} if audio_data else {"role": "user", "content": prompt}
+            ],
+            api_key=api_key,
+            base_url=base_url,
+            **kwargs,
+        ) if audio_data else openai_complete_if_cache(
+            "gpt-4o-mini",
+            prompt,
+            system_prompt=system_prompt,
+            history_messages=history_messages,
+            api_key=api_key,
+            base_url=base_url,
+            **kwargs,
+        )
+    )
+
+    audio_content = {
+        "audio_path": "path/to/audio.mp3",
+        "transcript": "This is a comprehensive introduction to machine learning algorithms.",
+        "duration": "5:30",
+        "format": "MP3",
+        "description": "Educational audio explaining ML fundamentals"
+    }
+
+    description, entity_info = await audio_processor.process_multimodal_content(
+        modal_content=audio_content,
+        content_type="audio",
+        file_path="research_paper.pdf",
+        entity_name="Educational Audio Content"
+    )
+
+    # Process a video
+    video_processor = VideoModalProcessor(
+        lightrag=rag,
+        modal_caption_func=lambda prompt, system_prompt=None, history_messages=[], video_data=None, **kwargs: openai_complete_if_cache(
+            "gpt-4o",
+            "",
+            system_prompt=None,
+            history_messages=[],
+            messages=[
+                {"role": "system", "content": [{"type": "text", "text": system_prompt}]} if system_prompt else None,
+                {"role": "user", "content": [
+                    {
+                        "type": "video_url",
+                        "video_url": {"url": f"data:video/mp4;base64,{video_data}"},
+                    },
+                    {"type": "text", "text": prompt}
+                ]} if video_data else {"role": "user", "content": prompt}
+            ],
+            api_key=api_key,
+            base_url=base_url,
+            **kwargs,
+        ) if video_data else openai_complete_if_cache(
+            "gpt-4o-mini",
+            prompt,
+            system_prompt=system_prompt,
+            history_messages=history_messages,
+            api_key=api_key,
+            base_url=base_url,
+            **kwargs,
+        )
+    )
+
+    video_content = {
+        "video_path": "path/to/video.mp4",
+        "caption": "Educational video explaining machine learning concepts",
+        "duration": "10:30",
+        "format": "MP4",
+        "description": "Comprehensive tutorial on supervised learning algorithms"
+    }
+
+    description, entity_info = await video_processor.process_multimodal_content(
+        modal_content=video_content,
+        content_type="video",
+        file_path="research_paper.pdf",
+        entity_name="Educational Video Content"
     )
 
     # Process a table
@@ -937,10 +1040,14 @@ The `content_list` should follow the standard format with each item being a dict
 - **Image content**: `{"type": "image", "img_path": "/absolute/path/to/image.jpg", "img_caption": ["caption"], "img_footnote": ["note"], "page_idx": 1}`
 - **Table content**: `{"type": "table", "table_body": "markdown table", "table_caption": ["caption"], "table_footnote": ["note"], "page_idx": 2}`
 - **Equation content**: `{"type": "equation", "latex": "LaTeX formula", "text": "description", "page_idx": 3}`
-- **Generic content**: `{"type": "custom_type", "content": "any content", "page_idx": 4}`
+- **Audio content**: `{"type": "audio", "audio_path": "/absolute/path/to/audio.mp3", "transcript": "transcription", "duration": "5:30", "format": "MP3", "description": "description", "page_idx": 4}`
+- **Video content**: `{"type": "video", "video_path": "/absolute/path/to/video.mp4", "caption": "video caption", "duration": "10:30", "format": "MP4", "description": "description", "page_idx": 5}`
+- **Generic content**: `{"type": "custom_type", "content": "any content", "page_idx": 6}`
 
 **Important Notes:**
 - **`img_path`**: Must be an absolute path to the image file (e.g., `/home/user/images/chart.jpg` or `C:\Users\user\images\chart.jpg`)
+- **`audio_path`**: Must be an absolute path to the audio file (e.g., `/home/user/audio/speech.mp3` or `C:\Users\user\audio\speech.mp3`)
+- **`video_path`**: Must be an absolute path to the video file (e.g., `/home/user/videos/tutorial.mp4` or `C:\Users\user\videos\tutorial.mp4`)
 - **`page_idx`**: Represents the page number where the content appears in the original document (0-based indexing)
 - **Content ordering**: Items are processed in the order they appear in the list
 
@@ -1012,6 +1119,13 @@ OPENAI_BASE_URL=your_base_url  # Optional
 OUTPUT_DIR=./output             # Default output directory for parsed documents
 PARSER=mineru                   # Parser selection: mineru or docling
 PARSE_METHOD=auto              # Parse method: auto, ocr, or txt
+
+# Multimodal Processing Configuration
+ENABLE_IMAGE_PROCESSING=true   # Enable image content processing
+ENABLE_TABLE_PROCESSING=true   # Enable table content processing
+ENABLE_EQUATION_PROCESSING=true # Enable equation content processing
+ENABLE_AUDIO_PROCESSING=true   # Enable audio content processing
+ENABLE_VIDEO_PROCESSING=true   # Enable video content processing
 ```
 
 **Note:** For backward compatibility, legacy environment variable names are still supported:
