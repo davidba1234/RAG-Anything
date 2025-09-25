@@ -244,6 +244,7 @@ pip install raganything
 pip install 'raganything[all]'              # All optional features
 pip install 'raganything[image]'            # Image format conversion (BMP, TIFF, GIF, WebP)
 pip install 'raganything[text]'             # Text file processing (TXT, MD)
+pip install 'raganything[ui]'               # Gradio-based web UI
 pip install 'raganything[image,text]'       # Multiple features
 ```
 
@@ -274,6 +275,7 @@ uv sync --all-extras                 # All optional features
 
 - **`[image]`** - Enables processing of BMP, TIFF, GIF, WebP image formats (requires Pillow)
 - **`[text]`** - Enables processing of TXT and MD files (requires ReportLab)
+- **`[ui]`** - Installs the Gradio-based web interface and dotenv support
 - **`[all]`** - Includes all Python optional dependencies
 
 > **⚠️ Office Document Processing Requirements:**
@@ -283,6 +285,43 @@ uv sync --all-extras                 # All optional features
 > - **macOS**: `brew install --cask libreoffice`
 > - **Ubuntu/Debian**: `sudo apt-get install libreoffice`
 > - **CentOS/RHEL**: `sudo yum install libreoffice`
+
+### 🌐 Web UI (Local & Docker)
+
+The repository now ships with a Gradio-based interface that lets you ingest
+documents and chat with the RAG-Anything pipeline directly from your browser.
+
+#### Local launch
+
+```bash
+# 1. Install the UI extra (adds Gradio + dotenv helpers)
+pip install 'raganything[ui]'
+
+# 2. Export an OpenAI-compatible API key (or store it in a .env file)
+export OPENAI_API_KEY="sk-..."
+
+# 3. Start the web UI on http://127.0.0.1:7860
+python -m app.gradio_app
+```
+
+The UI reads additional optional variables such as `OPENAI_BASE_URL`,
+`RAGANYTHING_TEXT_MODEL`, and `RAGANYTHING_EMBEDDING_MODEL`. Adjust them if you
+are using a self-hosted OpenAI-compatible service.
+
+#### Run with Docker
+
+```bash
+# Build the image
+docker build -t raganything-ui .
+
+# Run the container (listens on http://localhost:7860)
+docker run --rm -p 7860:7860 \
+  -e OPENAI_API_KEY="sk-..." \
+  raganything-ui
+```
+
+You can mount volumes to persist the `rag_storage` directory or supply a
+custom `.env` file if required.
 
 **Check MinerU installation:**
 

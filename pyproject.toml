@@ -36,12 +36,18 @@ markdown = [
     "weasyprint>=60.0",
     "pygments>=2.10.0",
 ]
+ui = [
+    "gradio>=4.44.0",
+    "python-dotenv>=1.0.0",
+]
 all = [
     "Pillow>=10.0.0",
     "reportlab>=4.0.0",
     "markdown>=3.4.0",
     "weasyprint>=60.0",
-    "pygments>=2.10.0"
+    "pygments>=2.10.0",
+    "gradio>=4.44.0",
+    "python-dotenv>=1.0.0",
 ]
 
 [project.urls]
