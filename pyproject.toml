@@ -22,7 +22,7 @@ classifiers = [
 ]
 dependencies = [
     "huggingface_hub",
-    lightrag = {git = "https://github.com/davidba1234/LightRAG.git"},
+    lightrag = { git = "https://github.com/davidba1234/LightRAG.git" },
     "mineru[core]",
     "tqdm",
 ]
